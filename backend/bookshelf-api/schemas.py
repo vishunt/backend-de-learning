@@ -7,6 +7,7 @@ class BookCreate(BaseModel):
     author: str = Field(...,min_length=1, max_length=255)
     year: int = Field(..., ge=1000, le=2000)
     genre :Optional[str] = None
+    published: bool = True
 
 class BookResponse(BaseModel):
     id: int
@@ -15,9 +16,11 @@ class BookResponse(BaseModel):
     year: int
     genre: Optional[str]
     created_at: datetime
+    published: bool
 
 class BookUpdate(BaseModel):
     title: Optional[str] = None
     author: Optional[str] = None
     year: Optional[int] = None
     genre: Optional[str] = None
+    published: Optional[bool] = None
