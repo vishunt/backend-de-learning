@@ -3,8 +3,8 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db
 from models.user import User
-from schemas.user import UserCreate, UserResponse, Token, LoginRequest
-from utils.auth import hash_password, verify_password, create_access_token, decode_access_token
+from schemas.user import UserCreate, UserResponse, Token, LoginRequest, RefreshToken, TokenPair
+from utils.auth import hash_password, verify_password, create_access_token, decode_access_token, create_refresh_token, decode_refresh_token
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -38,10 +38,22 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=TokenPair)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == credentials.username).first()
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    access_token = create_access_token(data={"sub": user.username})
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+@router.post("/refresh", response_model=Token)
+def refresh_token(body: RefreshToken, db: Session = Depends(get_db)):
+    username = decode_refresh_token(body.refresh_token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
