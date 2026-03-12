@@ -11,10 +11,12 @@ router = APIRouter(prefix="/books", tags=["Books"])
 
 @router.get("/", response_model=List[BookResponse])
 def get_books(
+    skip: int = 0,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(Book).all()
+    return db.query(Book).offset(skip).limit(limit).all()
 
 @router.get("/{book_id}", response_model=BookResponse)
 def get_book(
