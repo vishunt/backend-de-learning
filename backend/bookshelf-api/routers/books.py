@@ -7,6 +7,9 @@ from schemas.book import BookCreate, BookResponse, BookUpdate
 from routers.auth import get_current_user
 from typing import List
 from typing import List, Optional
+import json
+from redis_client import redis_client
+
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
@@ -20,8 +23,16 @@ def get_books(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Book)
+    # Build cache key from all params
+    cache_key = f"books:{skip}:{limit}:{author}:{genre}:{published}"
     
+    # Check cache first
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    
+    # If not in cache, query DB
+    query = db.query(Book)
     if author:
         query = query.filter(Book.author.ilike(f"%{author}%"))
     if genre:
@@ -29,7 +40,26 @@ def get_books(
     if published is not None:
         query = query.filter(Book.published == published)
     
-    return query.offset(skip).limit(limit).all()
+    books = query.offset(skip).limit(limit).all()
+    
+    # Convert to dict for JSON serialization
+    books_data = [
+        {
+            "id": b.id,
+            "title": b.title,
+            "author": b.author,
+            "year": b.year,
+            "genre": b.genre,
+            "published": b.published,
+            "created_at": b.created_at.isoformat()
+        }
+        for b in books
+    ]
+    
+    # Store in cache for 60 seconds
+    redis_client.setex(cache_key, 60, json.dumps(books_data))
+    
+    return books_data
 
 @router.get("/{book_id}", response_model=BookResponse)
 def get_book(
