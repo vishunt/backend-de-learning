@@ -6,6 +6,7 @@ from models.user import User
 from schemas.book import BookCreate, BookResponse, BookUpdate
 from routers.auth import get_current_user
 from typing import List
+from typing import List, Optional
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
@@ -13,10 +14,22 @@ router = APIRouter(prefix="/books", tags=["Books"])
 def get_books(
     skip: int = 0,
     limit: int = 10,
+    author: Optional[str] = None,
+    genre: Optional[str] = None,
+    published: Optional[bool] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(Book).offset(skip).limit(limit).all()
+    query = db.query(Book)
+    
+    if author:
+        query = query.filter(Book.author.ilike(f"%{author}%"))
+    if genre:
+        query = query.filter(Book.genre.ilike(f"%{genre}%"))
+    if published is not None:
+        query = query.filter(Book.published == published)
+    
+    return query.offset(skip).limit(limit).all()
 
 @router.get("/{book_id}", response_model=BookResponse)
 def get_book(
