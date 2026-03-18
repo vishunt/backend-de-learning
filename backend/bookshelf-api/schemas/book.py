@@ -5,7 +5,7 @@ from datetime import datetime
 class BookCreate(BaseModel):
     title: str = Field(...,min_length=1, max_length=255)
     author: str = Field(...,min_length=1, max_length=255)
-    year: int = Field(..., ge=1000, le=2000)
+    year: int = Field(..., ge=1000, le=2100)
     genre :Optional[str] = None
     published: bool = True
 

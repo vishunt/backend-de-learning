@@ -1,3 +1,4 @@
+from tasks import process_book_added
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from database import get_db
@@ -82,6 +83,10 @@ def create_book(
     db.add(db_book)
     db.commit()
     db.refresh(db_book)
+    
+    # Fire background task — doesn't block the response
+    process_book_added.delay(db_book.id, db_book.title, db_book.author)
+    
     return db_book
 
 @router.patch("/{book_id}", response_model=BookResponse)
