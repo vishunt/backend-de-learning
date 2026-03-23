@@ -7,6 +7,8 @@ from schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from routers.auth import get_current_user
 from typing import List, Optional
 from sqlalchemy import func
+import json
+from redis_client import redis_client
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -19,13 +21,38 @@ def get_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    cache_key = f"tasks:{current_user.id}:{skip}:{limit}:{completed}:{priority}"
+    
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    
     query = db.query(Task).filter(Task.owner_id == current_user.id)
     if completed is not None:
         query = query.filter(Task.completed == completed)
     if priority:
         query = query.filter(Task.priority == priority)
-    return query.offset(skip).limit(limit).all()
-
+    
+    tasks = query.offset(skip).limit(limit).all()
+    
+    tasks_data = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "completed": t.completed,
+            "priority": t.priority,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "owner_id": t.owner_id,
+            "created_at": t.created_at.isoformat(),
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None
+        }
+        for t in tasks
+    ]
+    
+    redis_client.setex(cache_key, 60, json.dumps(tasks_data))
+    
+    return tasks_data
 @router.get("/{task_id}", response_model=TaskResponse)
 def get_task(
     task_id: int,
