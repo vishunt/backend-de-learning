@@ -6,6 +6,7 @@ from models.user import User
 from schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from routers.auth import get_current_user
 from typing import List, Optional
+from sqlalchemy import func
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -75,3 +76,30 @@ def delete_task(
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(task)
     db.commit()
+
+@router.get("/stats/summary")
+def get_task_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    total = db.query(Task).filter(Task.owner_id == current_user.id).count()
+    completed = db.query(Task).filter(
+        Task.owner_id == current_user.id,
+        Task.completed == True
+    ).count()
+    pending = total - completed
+    
+    by_priority = {}
+    for priority in ["low", "medium", "high", "critical"]:
+        count = db.query(Task).filter(
+            Task.owner_id == current_user.id,
+            Task.priority == priority
+        ).count()
+        by_priority[priority] = count
+    
+    return {
+        "total": total,
+        "completed": completed,
+        "pending": pending,
+        "by_priority": by_priority
+    }    
