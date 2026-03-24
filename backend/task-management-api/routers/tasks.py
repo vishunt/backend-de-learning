@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy import func
 import json
 from redis_client import redis_client
+from tasks import send_task_created_notification, send_task_completed_notification
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -74,6 +75,14 @@ def create_task(
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+    
+    # Fire background notification
+    send_task_created_notification.delay(
+        db_task.id,
+        db_task.title,
+        current_user.username
+    )
+    
     return db_task
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -86,10 +95,18 @@ def update_task(
     task = db.query(Task).filter(Task.id == task_id, Task.owner_id == current_user.id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    
+    was_completed = task.completed
+    
     for field, value in updates.dict(exclude_unset=True).items():
         setattr(task, field, value)
     db.commit()
     db.refresh(task)
+    
+    # Fire completion notification only when task is newly completed
+    if not was_completed and task.completed:
+        send_task_completed_notification.delay(task.id, task.title)
+    
     return task
 
 @router.delete("/{task_id}", status_code=204)
