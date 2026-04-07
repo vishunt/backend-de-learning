@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: etl
+    database: etl_db
+    schema: public
+    tables:
+      - name: transformed_sales
+        description: "Cleaned and transformed sales data from the ETL pipeline"
