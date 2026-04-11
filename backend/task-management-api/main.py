@@ -8,13 +8,27 @@ from middleware.rate_limit import RateLimitMiddleware
 from middleware.logging_middleware import LoggingMiddleware
 from logger import get_logger
 import traceback
-
-Base.metadata.create_all(bind=engine)
+import time
+import sqlalchemy
 
 logger = get_logger("main")
 
-app = FastAPI(title="Task Management API", version="1.0.0")
+# Wait for Postgres to be ready before creating tables
+def wait_for_db(retries=10, delay=3):
+    for attempt in range(retries):
+        try:
+            with engine.connect() as conn:
+                logger.info("Database is ready!")
+                return
+        except sqlalchemy.exc.OperationalError:
+            logger.warning(f"Database not ready, retrying in {delay}s... (attempt {attempt + 1}/{retries})")
+            time.sleep(delay)
+    raise Exception("Database never became ready after multiple retries")
 
+wait_for_db()
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Task Management API", version="1.0.0")
 app.add_middleware(RateLimitMiddleware, max_requests=60, window_seconds=60)
 app.add_middleware(LoggingMiddleware)
 
