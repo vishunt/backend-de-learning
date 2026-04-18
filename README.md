@@ -2,6 +2,10 @@
 
 A 60-day structured learning plan building production-grade backend and data engineering projects from scratch. Built while working full-time as a SQL Server DBA at Capgemini.
 
+# Backend & Data Engineering Portfolio
+
+![Tests](https://github.com/vishunt/backend-de-learning/actions/workflows/test.yml/badge.svg)
+
 ## Projects
 
 ### 1. Task Management API
