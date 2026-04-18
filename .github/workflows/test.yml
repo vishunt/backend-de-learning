@@ -37,3 +37,35 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend/task-management-api
+        run: pip install greenlet==3.0.3 && pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend/task-management-api
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5433/taskdb
+          SECRET_KEY: test-secret-key
+          ALGORITHM: HS256
+          REDIS_HOST: localhost
+          REDIS_URL: redis://localhost:6379
+        run: pytest tests/ -v --cov=. --cov-report=term-missing
+
+  test-etl-pipeline:
+    name: ETL Pipeline Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        working-directory: backend/etl-pipeline
+        run: pip install greenlet==3.0.3 && pip install multimethod==1.9.1 && pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend/etl-pipeline
+        run: pytest tests/ -v
